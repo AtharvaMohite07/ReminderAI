@@ -89,3 +89,54 @@ class Database:
         conn.commit()
         conn.close()
         return True
+    
+    def get_similar_tasks(self, location, task):
+        """
+        Find similar tasks at the given location to prevent duplicates
+        Returns list of similar tasks based on string similarity
+        """
+        cursor = self._get_connection().cursor()
+        
+        # Get all tasks for this location
+        cursor.execute("""
+            SELECT r.task 
+            FROM reminders r
+            JOIN locations l ON r.location_id = l.id
+            WHERE l.name = ? AND r.completed = 0
+        """, (location,))
+        
+        existing_tasks = [row[0] for row in cursor.fetchall()]
+        
+        # Use difflib to find similar tasks
+        from difflib import SequenceMatcher
+        
+        similar_tasks = []
+        for existing_task in existing_tasks:
+            similarity = SequenceMatcher(None, task.lower(), existing_task.lower()).ratio()
+            if similarity > 0.6:  # Threshold for similarity (60%)
+                similar_tasks.append({
+                    'task': existing_task,
+                    'similarity': similarity
+                })
+        
+        # Sort by similarity score
+        similar_tasks.sort(key=lambda x: x['similarity'], reverse=True)
+        
+        return similar_tasks
+    
+    def get_all_locations_with_counts(self):
+        """Get all locations and their reminder counts"""
+        try:
+            cursor = self.conn.cursor()
+            cursor.execute("""
+                SELECT l.name, COUNT(r.id) as count
+                FROM locations l
+                LEFT JOIN reminders r ON l.id = r.location_id 
+                    AND r.completed = 0
+                GROUP BY l.name
+                ORDER BY count DESC, l.name
+            """)
+            return cursor.fetchall()
+        except Exception as e:
+            print(f"Database error in get_all_locations_with_counts: {str(e)}")
+            return []
