@@ -118,41 +118,54 @@ class SpeechHandler:
     
     def _is_add_reminder_intent(self, text):
         """Detect if the intent is to add a reminder"""
+        # First check for get reminder intent - this should take precedence
+        if self._is_get_reminder_intent(text):
+            return False
+            
         add_keywords = [
-            "remind me", "add reminder", "create reminder", 
-            "remember", "don't forget", "need to", "add task",
+            "remind me to", "add reminder", "create reminder", 
+            "remember to", "don't forget to", "need to", "add task",
             "add to my list", "remind me about", "make a note",
             "write down", "put on my list", "new reminder",
             "set reminder", "keep in mind", "note that", 
-            "should bring", "will need", "must remember",
-            "remind", "note", "jot down", "put down"
+            "should bring", "will need", "must remember"
         ]
         
         for keyword in add_keywords:
             if keyword in text:
                 return True
                 
-        # Check for simple phrases like "milk at grocery store"
-        if " at " in text or " in " in text or " to " in text:
+        # Make location pattern check more specific
+        if (" at " in text or " in " in text or " to " in text) and any(
+            action in text for action in ["bring", "buy", "get", "pick", "grab"]):
             return True
                 
         return False
-    
+
     def _is_get_reminder_intent(self, text):
         """Detect if the intent is to get reminders"""
         get_keywords = [
-            "what do i", "going to", "what should i", 
-            "remind me what", "what was i", "what did i",
-            "show me", "tell me", "what are my", "list my",
+            "what do i need", "what should i", "what was i supposed",
+            "remind me what", "what did i need", "show me reminders",
+            "tell me reminders", "what are my reminders", "list reminders",
             "check reminders", "check my list", "see my reminders",
-            "what's on my list", "my reminders", "items for",
-            "tasks for", "anything for", "stuff for", "have for",
-            "heading to", "on my way to", "visiting", "planned for"
+            "what's on my list", "my reminders for", "items for",
+            "tasks for", "anything for", "what do i have",
+            "heading to", "on my way to", "going to"
         ]
         
         for keyword in get_keywords:
             if keyword in text:
                 return True
+                
+        # Additional check for questions about locations
+        question_starters = ["what", "tell", "show", "list", "check"]
+        location_references = ["at", "in", "for"]
+        
+        words = text.split()
+        if any(word in question_starters for word in words) and any(word in location_references for word in words):
+            return True
+            
         return False
     
     def _is_list_locations_intent(self, text):
@@ -258,6 +271,31 @@ class SpeechHandler:
     def _handle_confirmation(self, text):
         """Handle confirmation to previous query"""
         self.context["awaiting_confirmation"] = False
+        
+        # Handle confirmation for adding reminder
+        if self.context.get("confirming_add"):
+            if self._is_confirmation(text):
+                return self._add_reminder(self.context["pending_location"], self.context["pending_task"])
+            else:
+                self.context["confirming_add"] = False
+                return "Okay, I've cancelled that. What would you like to do instead?"
+        
+        # Handle new location confirmation from fallback
+        if self.context.get("confirming_new_location"):
+            if self._is_confirmation(text) or "yes" in text.lower():
+                self.context["confirming_new_location"] = False
+                self.context["last_intent"] = "add"
+                # Extract task from the response
+                task = self._extract_task_only(text)
+                if task:
+                    return self._add_reminder(self.context["last_location"], task)
+                else:
+                    self.context["awaiting_confirmation"] = True
+                    return f"What would you like me to remind you about when you're at {self.context['last_location']}?"
+            else:
+                self.context["confirming_new_location"] = False
+                self._reset_context()
+                return "Okay, what would you like to do instead?"
         
         # If we were waiting for location confirmation for adding
         if self.context["last_intent"] == "add" and self.context["last_task"]:
@@ -418,30 +456,39 @@ class SpeechHandler:
     
     def _extract_location_for_retrieval(self, text):
         """Extract location from retrieval requests"""
+        # First clean up question phrases to avoid them being detected as locations
+        text = re.sub(r'^what\s+(do|should|did)\s+i\s+(need|have|bring|get|buy|do)\s+(?:at|in|for)\s+', '', text, flags=re.IGNORECASE)
+        text = re.sub(r'^tell\s+me\s+what\s+(?:i|to)\s+(?:need|have|bring|get|buy|do)\s+(?:at|in|for)\s+', '', text, flags=re.IGNORECASE)
+        
         patterns = [
             r"going to (?:the |my |our )?([a-z0-9 ]+)",
-            r"at (?:the |my |our )?([a-z0-9 ]+)",
-            r"for (?:the |my |our )?([a-z0-9 ]+)",
-            r"in (?:the |my |our )?([a-z0-9 ]+)",
-            r"to (?:the |my |our )?([a-z0-9 ]+)",
+            r"at (?:the |my |our )?([a-z0-9 ]+)$",  # Added $ to match end of string
+            r"for (?:the |my |our )?([a-z0-9 ]+)$",
+            r"in (?:the |my |our )?([a-z0-9 ]+)$",
+            r"to (?:the |my |our )?([a-z0-9 ]+)$",
             r"(?:location|place) (?:is|should be) (?:the |my |our )?([a-z0-9 ]+)",
             r"(grocery|store|shop|mall|work|office|school|gym|home)"
         ]
         
-        for pattern in patterns:
-            match = re.search(pattern, text)
-            if match:
-                return match.group(1).strip()
-        
-        # Try to match just a standalone word that might be a location
+        # First try exact location matches from database
         location_words = self._get_all_locations()
         if location_words:
             for word in location_words:
                 word_pattern = r'\b' + re.escape(word.lower()) + r'\b'
                 if re.search(word_pattern, text.lower()):
                     return word
-                    
-            # If no exact match, try fuzzy matching
+        
+        # Then try patterns
+        for pattern in patterns:
+            match = re.search(pattern, text.lower())
+            if match:
+                location = match.group(1).strip()
+                # Verify it's not a question word or common verb
+                if not any(word in location for word in ["what", "where", "when", "need", "have", "bring", "get"]):
+                    return location
+        
+        # Finally try fuzzy matching if no exact match found
+        if location_words:
             words = text.split()
             for word in words:
                 if len(word) > 3:  # Only match words of reasonable length
@@ -520,14 +567,22 @@ class SpeechHandler:
     
     def _add_reminder(self, location, task):
         """Add a reminder to the database"""
-        # Store in context
+        # First time called - ask for confirmation
+        if not self.context.get("confirming_add"):
+            self.context["confirming_add"] = True
+            self.context["pending_location"] = location
+            self.context["pending_task"] = task
+            self.context["awaiting_confirmation"] = True
+            return f"Just to confirm - you want me to remind you to '{task}' when you're at {location}. Is that correct?"
+        
+        # If we get here, user has confirmed
         self.context["last_location"] = location
         self.context["last_task"] = task
         self.context["awaiting_confirmation"] = False
+        self.context["confirming_add"] = False
         
         # Clean up the task text
         task = task.strip()
-        # Remove redundant prepositions at the beginning
         task = re.sub(r'^(to|about|that)\s+', '', task)
         
         self.database.add_reminder(location, task)
@@ -572,6 +627,7 @@ class SpeechHandler:
             # Treat as potential new location
             self.context["last_location"] = text
             self.context["awaiting_confirmation"] = True
+            self.context["confirming_new_location"] = True  # Add this flag
             return f"Do you want to add a reminder for {text}? If so, what should I remind you about?"
             
         return "I'm not sure what you'd like to do. Try saying something like 'remind me to bring my umbrella to work' or 'what do I need at the grocery store?'"
@@ -582,5 +638,7 @@ class SpeechHandler:
             "last_location": None,
             "last_task": None,
             "last_intent": None,
-            "awaiting_confirmation": False
+            "awaiting_confirmation": False,
+            "confirming_add": False,
+            "confirming_new_location": False
         }
