@@ -162,4 +162,4 @@ This project is licensed under the MIT License - see the LICENSE file for detail
 
 ---
 
-Created by Atharva Mohite - [GitHub Profile](https://github.com/AtharvaMohite07)
+Created by Atharva Mohite - (https://github.com/AtharvaMohite07)
