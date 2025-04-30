@@ -1,0 +1,391 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Location-Based Reminder</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+</head>
+<body>
+    <!-- Mobile menu toggle -->
+    <div class="mobile-toggle">
+        <i class="fas fa-bars"></i>
+    </div>
+
+    <div class="app-container">
+        <nav class="sidebar">
+            <div class="sidebar-header">
+                <div class="logo">
+                    <i class="fas fa-map-marker-alt"></i>
+                    <span>ReminderAI</span>
+                </div>
+                <button class="close-sidebar">
+                    <i class="fas fa-times"></i>
+                </button>
+            </div>
+            
+            <div class="user-profile">
+                <div class="avatar">
+                    <i class="fas fa-user"></i>
+                </div>
+                <div class="user-info">
+                    <div class="user-name">Welcome</div>
+                    <div class="user-status">Using Voice Assistant</div>
+                </div>
+            </div>
+
+            <ul class="menu">
+                <li class="active" data-page="dashboard">
+                    <i class="fas fa-home"></i> 
+                    <span>Dashboard</span>
+                </li>
+                <li data-page="all-reminders">
+                    <i class="fas fa-list"></i> 
+                    <span>All Reminders</span>
+                    <span class="badge reminder-count">0</span>
+                </li>
+                <li data-page="locations">
+                    <i class="fas fa-map-marker-alt"></i> 
+                    <span>Locations</span>
+                    <span class="badge location-count">0</span>
+                </li>
+                <li data-page="settings">
+                    <i class="fas fa-cog"></i> 
+                    <span>Settings</span>
+                </li>
+            </ul>
+
+            <div class="sidebar-footer">
+                <button class="btn sidebar-btn help-btn">
+                    <i class="fas fa-question-circle"></i>
+                    <span>Help</span>
+                </button>
+                <div class="mode-switch">
+                    <i class="fas fa-moon"></i>
+                    <span>Dark Mode</span>
+                </div>
+            </div>
+        </nav>
+
+        <main class="main-content">
+            <header class="app-header">
+                <h1>
+                    <span id="page-title">Dashboard</span>
+                    <div class="wave-animation">
+                        <span class="dot"></span>
+                        <span class="dot"></span>
+                        <span class="dot"></span>
+                    </div>
+                </h1>
+                <div class="header-actions">
+                    <div class="search-container">
+                        <input type="text" class="search-box" placeholder="Search reminders...">
+                        <i class="fas fa-search"></i>
+                    </div>
+                    <button class="notification-bell">
+                        <i class="fas fa-bell"></i>
+                        <span class="notification-badge">0</span>
+                    </button>
+                </div>
+            </header>
+
+            <!-- Dashboard Page -->
+            <div class="page-content" id="dashboard-page">
+                <div class="card voice-card">
+                    <div class="card-header">
+                        <h2><i class="fas fa-microphone"></i> Voice Assistant</h2>
+                        <div class="card-actions">
+                            <button class="voice-settings-btn" title="Voice Settings">
+                                <i class="fas fa-sliders-h"></i>
+                            </button>
+                        </div>
+                    </div>
+                    <div class="card-body">
+                        <div class="voice-visualization">
+                            <div class="sound-waves">
+                                <div class="bar"></div>
+                                <div class="bar"></div>
+                                <div class="bar"></div>
+                                <div class="bar"></div>
+                                <div class="bar"></div>
+                                <div class="bar"></div>
+                                <div class="bar"></div>
+                            </div>
+                        </div>
+                        <div class="voice-controls">
+                            <button id="recordButton" class="btn primary-btn">
+                                <i class="fas fa-microphone"></i> Hold to Speak
+                            </button>
+                            <button id="continuousListenButton" class="btn secondary-btn">
+                                <i class="fas fa-satellite-dish"></i> Enable Assistant
+                            </button>
+                        </div>
+                        <div id="status" class="status-indicator">
+                            <i class="fas fa-info-circle"></i> 
+                            <span>Ready to listen...</span>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="cards-row">
+                    <div class="card transcript-card">
+                        <div class="card-header">
+                            <h2><i class="fas fa-comment-alt"></i> Detected Speech</h2>
+                            <div class="card-actions">
+                                <button class="clear-text-btn" title="Clear Text">
+                                    <i class="fas fa-eraser"></i>
+                                </button>
+                                <button class="copy-text-btn" title="Copy Text">
+                                    <i class="fas fa-copy"></i>
+                                </button>
+                            </div>
+                        </div>
+                        <div class="card-body">
+                            <div class="speech-container">
+                                <p id="speechText" class="speech-text">Your spoken words will appear here...</p>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="card response-card">
+                        <div class="card-header">
+                            <h2><i class="fas fa-robot"></i> Response</h2>
+                            <div class="card-actions">
+                                <button class="speak-response-btn" title="Speak Response">
+                                    <i class="fas fa-volume-up"></i>
+                                </button>
+                                <button class="copy-response-btn" title="Copy Response">
+                                    <i class="fas fa-copy"></i>
+                                </button>
+                            </div>
+                        </div>
+                        <div class="card-body">
+                            <div class="loading-indicator">
+                                <div class="typing-dots">
+                                    <span class="dot"></span>
+                                    <span class="dot"></span>
+                                    <span class="dot"></span>
+                                </div>
+                            </div>
+                            <div class="response-container">
+                                <p id="responseText" class="response-text">Assistant's response will appear here...</p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="card reminders-card">
+                    <div class="card-header">
+                        <h2><i class="fas fa-list-check"></i> Recent Reminders</h2>
+                        <div class="card-actions">
+                            <button class="view-all-btn">
+                                <i class="fas fa-external-link-alt"></i> View All
+                            </button>
+                        </div>
+                    </div>
+                    <div class="card-body">
+                        <div class="location-selector">
+                            <div class="select-wrapper">
+                                <select id="locationSelect" class="location-select">
+                                    <option value="">Select a location</option>
+                                </select>
+                                <i class="fas fa-chevron-down"></i>
+                            </div>
+                            <button id="showRemindersBtn" class="btn accent-btn">
+                                <i class="fas fa-search"></i> Show Reminders
+                            </button>
+                        </div>
+                        <div class="reminders-list-container">
+                            <div class="empty-state" id="emptyReminders">
+                                <i class="fas fa-clipboard-list"></i>
+                                <p>No reminders for this location yet</p>
+                                <button class="btn small-btn">Add a reminder</button>
+                            </div>
+                            <ul id="remindersList" class="reminders-list"></ul>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="card help-card">
+                    <div class="card-header">
+                        <h2><i class="fas fa-question-circle"></i> Voice Commands</h2>
+                        <button class="toggle-help-btn">
+                            <i class="fas fa-chevron-down"></i>
+                        </button>
+                    </div>
+                    <div class="card-body help-content">
+                        <div class="command-section">
+                            <h3><i class="fas fa-bullhorn"></i> Wake Words</h3>
+                            <div class="wake-words">
+                                <span class="badge">Hey Assistant</span>
+                                <span class="badge">Assistant</span>
+                                <span class="badge">Reminder App</span>
+                                <span class="badge">Hey Reminder</span>
+                            </div>
+                        </div>
+                        
+                        <div class="command-section">
+                            <h3><i class="fas fa-plus-circle"></i> Add a reminder</h3>
+                            <ul class="commands-list">
+                                <li><span class="command-example">"Remember to bring milk next time I'm at grocery store"</span></li>
+                                <li><span class="command-example">"Don't forget to check the printer at office"</span></li>
+                                <li><span class="command-example">"Remind me to grab book at library"</span></li>
+                                <li><span class="command-example">"I need to buy batteries at hardware store"</span></li>
+                            </ul>
+                        </div>
+                        
+                        <div class="command-section">
+                            <h3><i class="fas fa-list"></i> Get reminders</h3>
+                            <ul class="commands-list">
+                                <li><span class="command-example">"I'm going to the grocery store, what did I need to get?"</span></li>
+                                <li><span class="command-example">"What should I bring to work?"</span></li>
+                                <li><span class="command-example">"Show me my reminders for library"</span></li>
+                            </ul>
+                        </div>
+                        
+                        <div class="command-section">
+                            <h3><i class="fas fa-magic"></i> Other Commands</h3>
+                            <ul class="commands-list">
+                                <li><span class="command-example">"List all my locations"</span></li>
+                                <li><span class="command-example">"Cancel that" or "Forget it"</span></li>
+                                <li><span class="command-example">"Help" or "What can you do?"</span></li>
+                            </ul>
+                        </div>
+                        
+                        <div class="tip">
+                            <i class="fas fa-lightbulb"></i>
+                            <span><strong>Assistant Mode</strong> listens continuously for wake words.</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Placeholders for other pages -->
+            <div class="page-content hidden" id="all-reminders-page">
+                <div class="card full-width">
+                    <div class="card-header">
+                        <h2><i class="fas fa-list"></i> All Reminders</h2>
+                        <div class="card-actions">
+                            <button class="add-reminder-btn">
+                                <i class="fas fa-plus"></i> Add New
+                            </button>
+                        </div>
+                    </div>
+                    <div class="card-body">
+                        <div class="filter-controls">
+                            <div class="select-wrapper">
+                                <select class="filter-select">
+                                    <option>All Locations</option>
+                                </select>
+                                <i class="fas fa-filter"></i>
+                            </div>
+                            <div class="search-wrapper">
+                                <input type="text" placeholder="Search reminders...">
+                                <i class="fas fa-search"></i>
+                            </div>
+                        </div>
+                        <div class="reminders-table-container">
+                            <table class="reminders-table">
+                                <thead>
+                                    <tr>
+                                        <th>Task</th>
+                                        <th>Location</th>
+                                        <th>Created</th>
+                                        <th>Actions</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    <!-- Will be populated dynamically -->
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="page-content hidden" id="locations-page">
+                <!-- Locations page content will go here -->
+            </div>
+            
+            <div class="page-content hidden" id="settings-page">
+                <!-- Settings page content will go here -->
+            </div>
+
+            <!-- Toast notification system -->
+            <div class="toast-container">
+                <!-- Toast notifications will be added here -->
+            </div>
+        </main>
+    </div>
+
+    <!-- Modal for voice settings -->
+    <div class="modal" id="voiceSettingsModal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h3>Voice Assistant Settings</h3>
+                <button class="close-modal"><i class="fas fa-times"></i></button>
+            </div>
+            <div class="modal-body">
+                <div class="settings-group">
+                    <h4>Voice Preferences</h4>
+                    <div class="setting-item">
+                        <label>Assistant Voice</label>
+                        <select id="voiceSelect">
+                            <option value="default">Default</option>
+                        </select>
+                    </div>
+                    <div class="setting-item">
+                        <label>Speaking Rate</label>
+                        <div class="range-with-value">
+                            <input type="range" min="0.5" max="2" step="0.1" value="1">
+                            <span class="range-value">1.0</span>
+                        </div>
+                    </div>
+                    <div class="setting-item">
+                        <label>Volume</label>
+                        <div class="range-with-value">
+                            <input type="range" min="0" max="1" step="0.1" value="1">
+                            <span class="range-value">100%</span>
+                        </div>
+                    </div>
+                </div>
+                <div class="settings-group">
+                    <h4>Wake Word Options</h4>
+                    <div class="setting-item checkbox">
+                        <input type="checkbox" id="wakeWordEnable" checked>
+                        <label for="wakeWordEnable">Enable Wake Words</label>
+                    </div>
+                    <div class="wake-word-options">
+                        <div class="wake-word-item">
+                            <input type="checkbox" id="wake1" checked>
+                            <label for="wake1">Hey Assistant</label>
+                        </div>
+                        <div class="wake-word-item">
+                            <input type="checkbox" id="wake2" checked>
+                            <label for="wake2">Assistant</label>
+                        </div>
+                        <div class="wake-word-item">
+                            <input type="checkbox" id="wake3" checked>
+                            <label for="wake3">Reminder App</label>
+                        </div>
+                        <div class="wake-word-item">
+                            <input type="checkbox" id="wake4" checked>
+                            <label for="wake4">Hey Reminder</label>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button class="btn secondary-btn">Cancel</button>
+                <button class="btn primary-btn">Save Changes</button>
+            </div>
+        </div>
+    </div>
+
+    <script src="{{ url_for('static', filename='js/main.js') }}"></script>
+</body>
+</html>
